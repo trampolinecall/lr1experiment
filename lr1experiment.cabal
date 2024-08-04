@@ -13,10 +13,17 @@ build-type:     Simple
 executable lr1experiment
   main-is: Main.hs
   other-modules:
+      FirstAndFollowSets
+      Grammar
+      Symbols
+      Utils
       Paths_lr1experiment
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  default-extensions:
+      LambdaCase
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing
   build-depends:
       base >=4.7 && <5
+    , containers
   default-language: Haskell2010
