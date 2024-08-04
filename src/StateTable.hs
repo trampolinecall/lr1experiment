@@ -5,7 +5,7 @@ module StateTable
     , State
     , GotoTable
     , ActionTable
-    , generate_state_table
+    , generate
     ) where
 
 import Control.Arrow (first, second)
@@ -24,17 +24,17 @@ import ItemAndSet (ItemSet, ItemSetInterner, get_first_item_set, new_item_set, n
 import qualified ItemAndSet
 import Symbols (NonTerminal, Symbol (..), Terminal (..))
 
-newtype StateTable = StateTable [State]
+newtype StateTable = StateTable [State] deriving Show
 
-data State = State Int ItemSet ActionTable GotoTable
+data State = State Int ItemSet ActionTable GotoTable deriving Show
 
-data Action = Shift Int | Reduce Rule | Accept
+data Action = Shift Int | Reduce Rule | Accept deriving (Show)
 
 type ActionTable = Map Terminal (Either [Action] Action)
 type GotoTable = Map NonTerminal (Either [Int] Int)
 
-generate_state_table :: Grammar -> StateTable
-generate_state_table grammar =
+generate :: Grammar -> StateTable
+generate grammar =
     StateMonad.evalState
         ( do
             first_set <- StateMonad.state $ get_first_item_set grammar follow_sets

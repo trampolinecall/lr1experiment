@@ -4,6 +4,55 @@
 
 module Main (main) where
 
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
+
+import qualified Grammar
+import qualified StateTable
+import Symbols (NonTerminal (..), Symbol (..), Terminal (..))
+import Utils (Display (..))
+
 main :: IO ()
 main = do
-    putStrLn "hello world"
+    result <-
+        runExceptT
+            ( do
+                let augment = NonTerminal ("AUGMENT")
+                let expr = NonTerminal ("E")
+                let expr' = NonTerminal ("E'")
+                let term = NonTerminal ("T")
+                let term' = NonTerminal ("T'")
+                let factor = NonTerminal ("F")
+
+                let eof = Terminal ("EOF")
+                let plus = Terminal ("+")
+                let star = Terminal ("*")
+                let oparen = Terminal ("(")
+                let cparen = Terminal (")")
+                let id = Terminal ("id")
+
+                grammar <-
+                    ExceptT $
+                        pure $
+                            Grammar.make_grammar
+                                [ Grammar.Rule augment [S'NonTerminal expr]
+                                ]
+                                [ Grammar.Rule expr [S'NonTerminal term, S'NonTerminal expr']
+                                , Grammar.Rule expr' [S'Terminal (plus), S'NonTerminal (term), S'NonTerminal (expr')]
+                                , Grammar.Rule expr' []
+                                , Grammar.Rule term [S'NonTerminal (factor), S'NonTerminal (term')]
+                                , Grammar.Rule term' [S'Terminal (star), S'NonTerminal (factor), S'NonTerminal (term')]
+                                , Grammar.Rule term' []
+                                , Grammar.Rule factor [S'Terminal (oparen), S'NonTerminal (expr), S'Terminal (cparen)]
+                                , Grammar.Rule factor [S'Terminal (id)]
+                                ]
+                let state_table = StateTable.generate grammar
+
+                lift $ putStrLn (display grammar)
+                lift $ putStrLn (show state_table) -- TODO: this hsould use display
+                pure ()
+            )
+
+    case result of
+        Right () -> pure ()
+        Left err -> putStrLn $ "error: " ++ show err

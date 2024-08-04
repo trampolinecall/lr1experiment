@@ -41,6 +41,7 @@ data ItemSet = ItemSetC
     , kernel :: Set Item
     , closure :: Set Item
     }
+    deriving Show
 
 data ItemSetInterner = ItemSetInterner Int [ItemSet]
 

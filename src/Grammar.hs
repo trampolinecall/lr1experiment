@@ -21,10 +21,18 @@ data Grammar = Grammar
 data Rule = Rule NonTerminal [Symbol]
     deriving (Show, Eq, Ord)
 
+instance Display Grammar where
+    display (Grammar all_rules _ _) =
+        map display all_rules
+            & map (++ "\n")
+            & concat
 instance Display Rule where
     display (Rule nt production) = display nt ++ " -> " ++ intercalate " " (map display production)
 
-data GrammarConstructionError = MultipleAugmentNonTerminals [NonTerminal] | NoAugmentRules
+data GrammarConstructionError
+    = MultipleAugmentNonTerminals [NonTerminal]
+    | NoAugmentRules
+    deriving Show
 make_grammar :: [Rule] -> [Rule] -> Either GrammarConstructionError Grammar
 make_grammar augment_rules rest_of_rules
     | null augment_rules = Left NoAugmentRules
