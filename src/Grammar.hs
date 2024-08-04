@@ -1,6 +1,9 @@
+{-# LANGUAGE PatternSynonyms #-}
+
 module Grammar
     ( Grammar (all_rules, augment_rules, augment_nt)
-    , Rule (..)
+    , Rule
+    , pattern Rule
     , GrammarConstructionError
     , make_grammar
     ) where
@@ -18,7 +21,10 @@ data Grammar = Grammar
     , augment_nt :: NonTerminal
     }
 
-data Rule = Rule NonTerminal [Symbol]
+pattern Rule :: Int -> NonTerminal -> [Symbol] -> Rule
+pattern Rule n nt prod <- RuleC n nt prod
+{-# COMPLETE Rule #-}
+data Rule = RuleC Int NonTerminal [Symbol]
     deriving (Show, Eq, Ord)
 
 instance Display Grammar where
@@ -27,16 +33,19 @@ instance Display Grammar where
             & map (++ "\n")
             & concat
 instance Display Rule where
-    display (Rule nt production) = display nt ++ " -> " ++ intercalate " " (map display production)
+    display (RuleC num nt production) = display num ++ ": " ++ display nt ++ " -> " ++ intercalate " " (map display production)
 
 data GrammarConstructionError
     = MultipleAugmentNonTerminals [NonTerminal]
     | NoAugmentRules
     deriving Show
-make_grammar :: [Rule] -> [Rule] -> Either GrammarConstructionError Grammar
+make_grammar :: [(NonTerminal, [Symbol])] -> [(NonTerminal, [Symbol])] -> Either GrammarConstructionError Grammar
 make_grammar augment_rules rest_of_rules
     | null augment_rules = Left NoAugmentRules
     | not $ all ((head augment_nonterminals) ==) augment_nonterminals = Left $ MultipleAugmentNonTerminals augment_nonterminals
-    | otherwise = Right $ Grammar (augment_rules ++ rest_of_rules) augment_rules (head augment_nonterminals)
+    | otherwise = Right $ Grammar (augment_rules_converted ++ rest_of_rules_converted) augment_rules_converted (head augment_nonterminals)
     where
-        augment_nonterminals = augment_rules & map (\(Rule nt _) -> nt)
+        augment_rules_converted = zipWith (\i (nt, prod) -> RuleC i nt prod) [0 ..] augment_rules
+        rest_of_rules_converted = zipWith (\i (nt, prod) -> RuleC i nt prod) [length augment_rules ..] rest_of_rules
+
+        augment_nonterminals = augment_rules_converted & map (\(Rule _ nt _) -> nt)

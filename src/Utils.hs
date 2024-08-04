@@ -6,6 +6,9 @@ module Utils
 class Display d where
     display :: d -> String
 
+instance Display Int where
+    display = show
+
 repeat_until_unchanging :: Eq a => (a -> a) -> a -> a
 repeat_until_unchanging change initial =
     let next = change initial

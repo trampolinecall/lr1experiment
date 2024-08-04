@@ -1,3 +1,5 @@
+{-# LANGUAGE PatternSynonyms #-}
+
 module FirstAndFollowSets
     ( FirstSet
     , FollowSet
@@ -15,7 +17,7 @@ import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Grammar (Grammar, Rule (..))
+import Grammar (Grammar, pattern Rule)
 import qualified Grammar as Grammar
 import Symbols (NonTerminal, Symbol (..), Terminal (..))
 import Utils (repeat_until_unchanging)
@@ -37,7 +39,7 @@ find_firsts grammar = repeat_until_unchanging add_firsts Map.empty
         add_firsts firsts =
             Grammar.all_rules grammar
                 & map
-                    ( \(Rule nt production) ->
+                    ( \(Rule _ nt production) ->
                         Map.singleton
                             nt
                             ( if null production
@@ -54,7 +56,7 @@ find_follows grammar first_sets = repeat_until_unchanging add_follows (Map.singl
         add_follows follows =
             Grammar.all_rules grammar
                 & concatMap
-                    ( \(Rule nt production) ->
+                    ( \(Rule _ nt production) ->
                         iter_over_production production
                             & map
                                 ( \(current_symbol, after) ->

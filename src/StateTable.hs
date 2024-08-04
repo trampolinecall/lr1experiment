@@ -9,29 +9,58 @@ module StateTable
     ) where
 
 import Control.Arrow (first, second)
+import qualified Control.Monad.Trans.State as StateMonad
 import Data.Function ((&))
+import Data.List (intercalate)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Set as Set
-
-import qualified Control.Monad.Trans.State as StateMonad
+import qualified Text.Layout.Table as Table
 
 import FirstAndFollowSets (find_firsts, find_follows)
-import Grammar (Grammar, Rule (..))
+import Grammar (Grammar, Rule, pattern Rule)
 import qualified Grammar
 import ItemAndSet (ItemSet, ItemSetInterner, get_first_item_set, new_item_set, new_item_set_interner, pattern Item)
 import qualified ItemAndSet
 import Symbols (NonTerminal, Symbol (..), Terminal (..))
+import Utils (Display (..))
 
 newtype StateTable = StateTable [State] deriving Show
 
 data State = State Int ItemSet ActionTable GotoTable deriving Show
 
-data Action = Shift Int | Reduce Rule | Accept deriving (Show)
+data Action = Shift Int | Reduce Rule | Accept deriving Show
 
 type ActionTable = Map Terminal (Either [Action] Action)
 type GotoTable = Map NonTerminal (Either [Int] Int)
+
+instance Display Action where
+    display (Shift next_state) = "s" ++ display next_state
+    display (Reduce (Rule rule_num _ _)) = "r" ++ display rule_num
+    display Accept = "acc"
+instance Display StateTable where
+    display (StateTable states) =
+        Table.tableString $
+            Table.columnHeaderTableS
+                (Table.defColSpec : (Table.defColSpec <$ all_terminals) ++ (Table.defColSpec <$ all_nonterminals))
+                (Table.unicodeTableStyleFromSpec $ Table.simpleTableStyleSpec Table.HeavyLine Table.SingleLine)
+                (Table.titlesH $ "number" : map display all_terminals ++ map display all_nonterminals)
+                ( states
+                    & map
+                        ( \(State number _ actions gotos) ->
+                            Table.rowG $
+                                show number
+                                    : map (\term -> maybe "" display_action_or_conflict (Map.lookup term actions)) all_terminals
+                                    ++ map (\nt -> maybe "" display_action_or_conflict (Map.lookup nt gotos)) all_nonterminals
+                        )
+                )
+        where
+            all_terminals = states & map (\(State _ _ actions _) -> Map.keys actions) & concat & Set.fromList & Set.toAscList
+            all_nonterminals = states & map (\(State _ _ _ gotos) -> Map.keys gotos) & concat & Set.fromList & Set.toAscList
+
+            display_action_or_conflict (Right a) = display a
+            display_action_or_conflict (Left as) = intercalate "/" (map display as)
 
 generate :: Grammar -> StateTable
 generate grammar =
@@ -68,7 +97,7 @@ generate grammar =
                                 Nothing ->
                                     pure
                                         ( map
-                                            ( \(Item rule@(Rule r_nt _) _ lookahead) ->
+                                            ( \(Item rule@(Rule _ r_nt _) _ lookahead) ->
                                                 if r_nt == Grammar.augment_nt grammar
                                                     then Map.singleton lookahead Accept
                                                     else Map.singleton lookahead (Reduce rule)

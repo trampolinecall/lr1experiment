@@ -24,7 +24,6 @@ main = do
                 let term' = NonTerminal ("T'")
                 let factor = NonTerminal ("F")
 
-                let eof = Terminal ("EOF")
                 let plus = Terminal ("+")
                 let star = Terminal ("*")
                 let oparen = Terminal ("(")
@@ -35,21 +34,21 @@ main = do
                     ExceptT $
                         pure $
                             Grammar.make_grammar
-                                [ Grammar.Rule augment [S'NonTerminal expr]
+                                [ (augment, [S'NonTerminal expr])
                                 ]
-                                [ Grammar.Rule expr [S'NonTerminal term, S'NonTerminal expr']
-                                , Grammar.Rule expr' [S'Terminal (plus), S'NonTerminal (term), S'NonTerminal (expr')]
-                                , Grammar.Rule expr' []
-                                , Grammar.Rule term [S'NonTerminal (factor), S'NonTerminal (term')]
-                                , Grammar.Rule term' [S'Terminal (star), S'NonTerminal (factor), S'NonTerminal (term')]
-                                , Grammar.Rule term' []
-                                , Grammar.Rule factor [S'Terminal (oparen), S'NonTerminal (expr), S'Terminal (cparen)]
-                                , Grammar.Rule factor [S'Terminal (id)]
+                                [ (expr, [S'NonTerminal term, S'NonTerminal expr'])
+                                , (expr', [S'Terminal (plus), S'NonTerminal (term), S'NonTerminal (expr')])
+                                , (expr', [])
+                                , (term, [S'NonTerminal (factor), S'NonTerminal (term')])
+                                , (term', [S'Terminal (star), S'NonTerminal (factor), S'NonTerminal (term')])
+                                , (term', [])
+                                , (factor, [S'Terminal (oparen), S'NonTerminal (expr), S'Terminal (cparen)])
+                                , (factor, [S'Terminal (id)])
                                 ]
                 let state_table = StateTable.generate grammar
 
                 lift $ putStrLn (display grammar)
-                lift $ putStrLn (show state_table) -- TODO: this hsould use display
+                lift $ putStrLn (display state_table)
                 pure ()
             )
 
