@@ -19,6 +19,7 @@ data Grammar = Grammar
     }
 
 data Rule = Rule NonTerminal [Symbol]
+    deriving (Show, Eq, Ord)
 
 instance Display Rule where
     display (Rule nt production) = display nt ++ " -> " ++ intercalate " " (map display production)
@@ -27,7 +28,7 @@ data GrammarConstructionError = MultipleAugmentNonTerminals [NonTerminal] | NoAu
 make_grammar :: [Rule] -> [Rule] -> Either GrammarConstructionError Grammar
 make_grammar augment_rules rest_of_rules
     | null augment_rules = Left NoAugmentRules
-    | not $ all ((head augment_nonterminals)==) augment_nonterminals = Left $ MultipleAugmentNonTerminals augment_nonterminals
+    | not $ all ((head augment_nonterminals) ==) augment_nonterminals = Left $ MultipleAugmentNonTerminals augment_nonterminals
     | otherwise = Right $ Grammar (augment_rules ++ rest_of_rules) augment_rules (head augment_nonterminals)
     where
         augment_nonterminals = augment_rules & map (\(Rule nt _) -> nt)

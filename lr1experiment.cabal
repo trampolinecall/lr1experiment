@@ -15,6 +15,7 @@ executable lr1experiment
   other-modules:
       FirstAndFollowSets
       Grammar
+      ItemAndSet
       Symbols
       Utils
       Paths_lr1experiment
