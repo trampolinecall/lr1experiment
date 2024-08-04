@@ -122,7 +122,7 @@ generate grammar =
                                     pure
                                         ( map
                                             ( \(Item rule@(Rule _ r_nt _) _ lookahead) ->
-                                                if r_nt == Grammar.augment_nt grammar
+                                                if r_nt == Grammar.augment_nt grammar && lookahead == EOF
                                                     then Map.singleton lookahead Accept
                                                     else Map.singleton lookahead (Reduce rule)
                                             )
