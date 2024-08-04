@@ -44,7 +44,7 @@ parse table input = go [] input
                         Just (Conflict void _) -> absurd void
                         Nothing -> Left ParseError
                 Just (SingleAction Accept) -> Right $ map snd stack
-                Nothing -> Left (ParseError)
+                Nothing -> Left ParseError
                 Just (Conflict void _) -> absurd void
 
         stack_top :: [(Int, AST)] -> (Int, Maybe AST)

@@ -47,9 +47,9 @@ main = do
                                     [ (expr, [S'NonTerminal term])
                                     , (expr, [S'NonTerminal expr, S'Terminal plus, S'NonTerminal term])
                                     , (term, [S'NonTerminal factor])
-                                    , (term, [S'NonTerminal (term), S'Terminal star, S'NonTerminal (factor)])
-                                    , (factor, [S'Terminal (oparen), S'NonTerminal (expr), S'Terminal (cparen)])
-                                    , (factor, [S'Terminal (id)])
+                                    , (term, [S'NonTerminal term, S'Terminal star, S'NonTerminal factor])
+                                    , (factor, [S'Terminal oparen, S'NonTerminal expr, S'Terminal cparen])
+                                    , (factor, [S'Terminal id])
                                     ]
                 let state_table = StateTable.generate grammar
                 state_table <- ExceptT $ pure $ convert_err $ StateTable.remove_conflicts state_table
