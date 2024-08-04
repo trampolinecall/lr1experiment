@@ -34,7 +34,7 @@ main = do
                 let plus = Terminal "+"
                 let star = Terminal "*"
                 let oparen = Terminal "("
-                let cparen = Terminal "")
+                let cparen = Terminal ")"
                 let id = Terminal "id"
 
                 grammar <-
