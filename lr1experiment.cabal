@@ -16,6 +16,7 @@ executable lr1experiment
       FirstAndFollowSets
       Grammar
       ItemAndSet
+      StateTable
       Symbols
       Utils
       Paths_lr1experiment
@@ -27,4 +28,5 @@ executable lr1experiment
   build-depends:
       base >=4.7 && <5
     , containers
+    , transformers
   default-language: Haskell2010
