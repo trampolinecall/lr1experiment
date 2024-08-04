@@ -7,10 +7,14 @@
 module StateTable
     ( StateTable
     , State
+    , pattern State
     , GotoTable
     , ActionTable
+    , ActionOrConflict (..)
+    , Action (..)
     , generate
     , remove_conflicts
+    , get_state
     ) where
 
 import Control.Arrow (first, second)
@@ -32,9 +36,12 @@ import qualified ItemAndSet
 import Symbols (NonTerminal, Symbol (..), Terminal (..))
 import Utils (Display (..))
 
-newtype StateTable conflicts_allowed = StateTable [State conflicts_allowed] deriving Show
+newtype StateTable conflicts_allowed = StateTable (Map Int (State conflicts_allowed)) deriving Show
 
-data State conflicts_allowed = State Int ItemSet (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
+pattern State :: Int -> ItemSet -> (ActionTable conflicts_allowed) -> (GotoTable conflicts_allowed) -> (State conflicts_allowed)
+pattern State n s a g <- StateC n s a g
+{-# COMPLETE State #-}
+data State conflicts_allowed = StateC Int ItemSet (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
 
 data Action = Shift Int | Reduce Rule | Accept deriving Show
 
@@ -49,6 +56,7 @@ data ActionOrConflict conflicts_allowed a
 data TableConflict
     = ActionConflict [Action] -- TODO: make this better
     | GotoConflict [Int]
+    deriving Show
 
 instance Display Action where
     display (Shift next_state) = "s" ++ display next_state
@@ -62,6 +70,7 @@ instance Display (StateTable conflict_functor) where
                 (Table.unicodeTableStyleFromSpec $ Table.simpleTableStyleSpec Table.HeavyLine Table.SingleLine)
                 (Table.titlesH $ "number" : map display all_terminals ++ map display all_nonterminals)
                 ( states
+                    & Map.elems
                     & map
                         ( \(State number _ actions gotos) ->
                             Table.rowG $
@@ -71,8 +80,8 @@ instance Display (StateTable conflict_functor) where
                         )
                 )
         where
-            all_terminals = states & map (\(State _ _ actions _) -> Map.keys actions) & concat & Set.fromList & Set.toAscList
-            all_nonterminals = states & map (\(State _ _ _ gotos) -> Map.keys gotos) & concat & Set.fromList & Set.toAscList
+            all_terminals = states & Map.elems & map (\(State _ _ actions _) -> Map.keys actions) & concat & Set.fromList & Set.toAscList
+            all_nonterminals = states & Map.elems & map (\(State _ _ _ gotos) -> Map.keys gotos) & concat & Set.fromList & Set.toAscList
 
             display_action_or_conflict (SingleAction a) = display a
             display_action_or_conflict (Conflict _ as) = intercalate "/" (map display as)
@@ -144,9 +153,9 @@ generate grammar =
                     & fmap (second concat)
 
             go
-                (Map.insertWith (\_ _ -> error "duplicate state") current_set_number (State current_set_number current_set actions gotos) current_table)
+                (Map.insertWith (\_ _ -> error "duplicate state") current_set_number (StateC current_set_number current_set actions gotos) current_table)
                 (more_sets ++ new_sets_from_actions ++ new_sets_from_gotos)
-        go current_table [] = pure $ StateTable (Map.elems current_table)
+        go current_table [] = pure $ StateTable current_table
 
         make_conflict (SingleAction a) (SingleAction b) = Conflict () ([a, b])
         make_conflict (SingleAction as) (Conflict _ bs) = Conflict () (as : bs)
@@ -156,8 +165,8 @@ generate grammar =
 remove_conflicts :: StateTable () -> Either TableConflict (StateTable Void)
 remove_conflicts (StateTable states) = StateTable <$> (mapM remove_conflict_from_state states)
     where
-        remove_conflict_from_state (State number set actions gotos) =
-            State number set
+        remove_conflict_from_state (StateC number set actions gotos) =
+            StateC number set
                 <$> mapM
                     ( \case
                         SingleAction a -> Right $ SingleAction a
@@ -170,3 +179,6 @@ remove_conflicts (StateTable states) = StateTable <$> (mapM remove_conflict_from
                         Conflict () conflicts -> Left $ GotoConflict conflicts
                     )
                     gotos
+
+get_state :: Int -> StateTable conflicts_allowed -> Maybe (State conflicts_allowed)
+get_state n (StateTable states) = Map.lookup n states

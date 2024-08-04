@@ -16,6 +16,7 @@ executable lr1experiment
       FirstAndFollowSets
       Grammar
       ItemAndSet
+      Parser
       StateTable
       Symbols
       Utils
