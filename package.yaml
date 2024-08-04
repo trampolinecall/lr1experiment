@@ -1,0 +1,23 @@
+name: lr1experiment
+version: 0.0.0.0
+license: MIT
+
+dependencies:
+    - base >= 4.7 && < 5
+
+ghc-options:
+    - -Wall
+    - -Wcompat
+    - -Widentities
+    - -Wincomplete-record-updates
+    - -Wincomplete-uni-patterns
+    - -Wmissing-export-lists
+    - -Wmissing-home-modules
+    - -Wpartial-fields
+    - -Wredundant-constraints
+    - -Wno-name-shadowing
+
+executables:
+    lr1experiment:
+        source-dirs: src
+        main: Main.hs
