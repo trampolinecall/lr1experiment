@@ -42,12 +42,11 @@ main = do
                         pure $
                             convert_err $
                                 Grammar.make_grammar
-                                    -- [ (augment, [S'NonTerminal expr])
-                                    -- ]
+                                    [ (augment, [S'NonTerminal expr])
+                                    ]
                                     [ (expr, [S'NonTerminal term])
                                     , (expr, [S'NonTerminal expr, S'Terminal plus, S'NonTerminal term])
-                                    ]
-                                    [ (term, [S'NonTerminal factor])
+                                    , (term, [S'NonTerminal factor])
                                     , (term, [S'NonTerminal term, S'Terminal star, S'NonTerminal factor])
                                     , (factor, [S'Terminal oparen, S'NonTerminal expr, S'Terminal cparen])
                                     , (factor, [S'Terminal id])
