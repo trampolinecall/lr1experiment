@@ -1,4 +1,8 @@
+{-# LANGUAGE EmptyDataDeriving #-}
+{-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module StateTable
     ( StateTable
@@ -6,6 +10,7 @@ module StateTable
     , GotoTable
     , ActionTable
     , generate
+    , remove_conflicts
     ) where
 
 import Control.Arrow (first, second)
@@ -16,6 +21,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Set as Set
+import Data.Void (Void)
 import qualified Text.Layout.Table as Table
 
 import FirstAndFollowSets (find_firsts, find_follows)
@@ -26,20 +32,29 @@ import qualified ItemAndSet
 import Symbols (NonTerminal, Symbol (..), Terminal (..))
 import Utils (Display (..))
 
-newtype StateTable = StateTable [State] deriving Show
+newtype StateTable conflicts_allowed = StateTable [State conflicts_allowed] deriving Show
 
-data State = State Int ItemSet ActionTable GotoTable deriving Show
+data State conflicts_allowed = State Int ItemSet (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
 
 data Action = Shift Int | Reduce Rule | Accept deriving Show
 
-type ActionTable = Map Terminal (Either [Action] Action)
-type GotoTable = Map NonTerminal (Either [Int] Int)
+type ActionTable conflicts_allowed = Map Terminal (ActionOrConflict conflicts_allowed Action)
+type GotoTable conflicts_allowed = Map NonTerminal (ActionOrConflict conflicts_allowed Int)
+
+data ActionOrConflict conflicts_allowed a
+    = SingleAction a
+    | Conflict conflicts_allowed [a]
+    deriving Show
+
+data TableConflict
+    = ActionConflict [Action] -- TODO: make this better
+    | GotoConflict [Int]
 
 instance Display Action where
     display (Shift next_state) = "s" ++ display next_state
     display (Reduce (Rule rule_num _ _)) = "r" ++ display rule_num
     display Accept = "acc"
-instance Display StateTable where
+instance Display (StateTable conflict_functor) where
     display (StateTable states) =
         Table.tableString $
             Table.columnHeaderTableS
@@ -59,10 +74,10 @@ instance Display StateTable where
             all_terminals = states & map (\(State _ _ actions _) -> Map.keys actions) & concat & Set.fromList & Set.toAscList
             all_nonterminals = states & map (\(State _ _ _ gotos) -> Map.keys gotos) & concat & Set.fromList & Set.toAscList
 
-            display_action_or_conflict (Right a) = display a
-            display_action_or_conflict (Left as) = intercalate "/" (map display as)
+            display_action_or_conflict (SingleAction a) = display a
+            display_action_or_conflict (Conflict _ as) = intercalate "/" (map display as)
 
-generate :: Grammar -> StateTable
+generate :: Grammar -> StateTable ()
 generate grammar =
     StateMonad.evalState
         ( do
@@ -74,7 +89,7 @@ generate grammar =
         first_sets = find_firsts grammar
         follow_sets = find_follows grammar first_sets
 
-        go :: Map Int State -> [ItemSet] -> StateMonad.State ItemSetInterner StateTable
+        go :: Map Int (State ()) -> [ItemSet] -> StateMonad.State ItemSetInterner (StateTable ())
         go current_table (current_set : more_sets) = do
             let current_set_number = ItemAndSet.number current_set
             let symbols_after_dot =
@@ -108,7 +123,7 @@ generate grammar =
                                 _ -> pure ([], [])
                         )
                     & fmap unzip
-                    & fmap (first (Map.unionsWith make_conflict . map (Map.map Right) . concat))
+                    & fmap (first (Map.unionsWith make_conflict . map (Map.map SingleAction) . concat))
                     & fmap (second concat)
 
             (gotos, new_sets_from_gotos) <-
@@ -125,7 +140,7 @@ generate grammar =
                                 _ -> pure (Map.empty, [])
                         )
                     & fmap unzip
-                    & fmap (first (Map.unionsWith make_conflict . map (Map.map Right)))
+                    & fmap (first (Map.unionsWith make_conflict . map (Map.map SingleAction)))
                     & fmap (second concat)
 
             go
@@ -133,7 +148,25 @@ generate grammar =
                 (more_sets ++ new_sets_from_actions ++ new_sets_from_gotos)
         go current_table [] = pure $ StateTable (Map.elems current_table)
 
-        make_conflict (Right a) (Right b) = Left [a, b]
-        make_conflict (Right as) (Left bs) = Left $ as : bs
-        make_conflict (Left as) (Right bs) = Left $ bs : as
-        make_conflict (Left as) (Left bs) = Left $ as ++ bs
+        make_conflict (SingleAction a) (SingleAction b) = Conflict () ([a, b])
+        make_conflict (SingleAction as) (Conflict _ bs) = Conflict () (as : bs)
+        make_conflict (Conflict _ as) (SingleAction bs) = Conflict () (bs : as)
+        make_conflict (Conflict _ as) (Conflict _ bs) = Conflict () (as ++ bs)
+
+remove_conflicts :: StateTable () -> Either TableConflict (StateTable Void)
+remove_conflicts (StateTable states) = StateTable <$> (mapM remove_conflict_from_state states)
+    where
+        remove_conflict_from_state (State number set actions gotos) =
+            State number set
+                <$> mapM
+                    ( \case
+                        SingleAction a -> Right $ SingleAction a
+                        Conflict () conflicts -> Left $ ActionConflict conflicts
+                    )
+                    actions
+                <*> mapM
+                    ( \case
+                        SingleAction g -> Right $ SingleAction g
+                        Conflict () conflicts -> Left $ GotoConflict conflicts
+                    )
+                    gotos
