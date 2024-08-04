@@ -26,16 +26,16 @@ main = do
     result <-
         runExceptT
             ( do
-                let augment = NonTerminal ("AUGMENT")
-                let expr = NonTerminal ("E")
-                let term = NonTerminal ("T")
-                let factor = NonTerminal ("F")
+                let augment = NonTerminal "AUGMENT"
+                let expr = NonTerminal "E"
+                let term = NonTerminal "T"
+                let factor = NonTerminal "F"
 
-                let plus = Terminal ("+")
-                let star = Terminal ("*")
-                let oparen = Terminal ("(")
-                let cparen = Terminal (")")
-                let id = Terminal ("id")
+                let plus = Terminal "+"
+                let star = Terminal "*"
+                let oparen = Terminal "("
+                let cparen = Terminal "")
+                let id = Terminal "id"
 
                 grammar <-
                     ExceptT $
