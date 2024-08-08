@@ -22,6 +22,7 @@ executable lr1experiment
       Parser
       SLR
       StateTable
+      StateTable.Generation
       Symbols
       Utils
       Paths_lr1experiment
