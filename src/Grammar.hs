@@ -7,6 +7,7 @@ module Grammar
     , GrammarConstructionError
     , make_grammar
     , all_terminals
+    , filter_rules_with_nt
     ) where
 
 import Data.Function ((&))
@@ -69,3 +70,6 @@ all_terminals (Grammar rules _ _) =
             )
         & Set.unions
         & (<> (Set.singleton EOF))
+
+filter_rules_with_nt :: NonTerminal -> Grammar -> [Rule]
+filter_rules_with_nt nt (Grammar rules _ _) = filter (\(Rule _ r_nt _) -> r_nt == nt) rules

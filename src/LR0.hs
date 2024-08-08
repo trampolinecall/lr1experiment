@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 
-module LR0 (generate) where
+module LR0 (LR0Item (..), new_item, new_item_with_index_0, generate) where
 
 import Control.Arrow (first, second)
 import qualified Control.Monad.Trans.State as StateMonad
@@ -9,21 +9,55 @@ import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 
-import Grammar (Grammar, pattern Rule)
+import Grammar (Grammar, Rule, pattern Rule)
 import qualified Grammar
-import Item (LR0Item, pattern LR0Item)
+import Item (Item)
 import qualified Item
-import ItemSet (ItemSet, augment_items, new_item_set_lr0)
+import ItemSet (ItemSet)
 import qualified ItemSet
 import StateTable (Action (..), ActionOrConflict (..), State (..), StateTable)
 import qualified StateTable
 import Symbols (Symbol (..))
 
+data LR0Item = LR0Item Rule Int deriving (Show, Eq, Ord)
+new_item :: Rule -> Int -> Maybe LR0Item
+new_item r@(Rule _ _ production) i
+    | i > length production = Nothing
+    | otherwise = Just $ LR0Item r i
+new_item_with_index_0 :: Rule -> LR0Item
+new_item_with_index_0 r = LR0Item r 0
+
+instance Item LR0Item where
+    rule (LR0Item r _) = r
+    index (LR0Item _ i) = i
+
+    sym_after_dot (LR0Item (Rule _ _ production) index)
+        | index < length production = Just (production !! index)
+        | otherwise = Nothing
+
+    can_move_forward (LR0Item (Rule _ _ r_production) i) = i <= length (r_production)
+    move_forward (LR0Item r i) = new_item r (i + 1)
+
+    sets_equal = (==)
+    find_closure grammar kernel = go Set.empty (Set.toList kernel)
+        where
+            go current_closure [] = current_closure
+            go current_closure (current_item : more) =
+                let symbol_after_dot = Item.sym_after_dot current_item
+                in case symbol_after_dot of
+                    Just (S'NonTerminal nt_after_dot) ->
+                        let to_add_to_closure = Set.map new_item_with_index_0 $ Set.fromList $ Grammar.filter_rules_with_nt nt_after_dot grammar
+                        in go
+                            (current_closure <> to_add_to_closure)
+                            (more ++ filter (\i -> not (Set.member i kernel) && not (Set.member i current_closure)) (Set.toAscList to_add_to_closure))
+                    _ -> go current_closure more
+
 generate :: Grammar -> StateTable LR0Item ()
 generate grammar =
     StateMonad.evalState
         ( do
-            (first_set, _) <- StateMonad.state $ new_item_set_lr0 (Grammar.all_rules grammar) (augment_items grammar)
+            (first_set, _) <-
+                StateMonad.state $ ItemSet.new grammar (Set.map (\rule -> new_item_with_index_0 rule) (Set.fromList $ Grammar.augment_rules grammar))
             go [] [first_set]
         )
         ItemSet.new_interner
@@ -45,7 +79,7 @@ generate grammar =
                                 Just (S'Terminal term) -> do
                                     -- fromJust should be safe because the symbol after the dot is a terminal
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
-                                    (next_set, set_is_new) <- StateMonad.state $ new_item_set_lr0 (Grammar.all_rules grammar) new_kernel
+                                    (next_set, set_is_new) <- StateMonad.state $ ItemSet.new grammar new_kernel
 
                                     pure ([Map.singleton term (Shift $ ItemSet.number next_set)], if set_is_new then [next_set] else [])
                                 Nothing ->
@@ -72,7 +106,7 @@ generate grammar =
                             case symbol_after_dot of
                                 Just (S'NonTerminal nt) -> do
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
-                                    (next_set, set_is_new) <- StateMonad.state $ new_item_set_lr0 (Grammar.all_rules grammar) new_kernel
+                                    (next_set, set_is_new) <- StateMonad.state $ ItemSet.new grammar new_kernel
 
                                     pure (Map.singleton nt (ItemSet.number next_set), if set_is_new then [next_set] else [])
                                 _ -> pure (Map.empty, [])
@@ -88,4 +122,3 @@ generate grammar =
             case StateTable.new states of
                 Right st -> pure st
                 Left (StateTable.DuplicateState s1 s2) -> error $ "duplicate state: " ++ show s1 ++ " " ++ show s2
-

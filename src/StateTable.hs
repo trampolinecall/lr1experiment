@@ -34,10 +34,6 @@ import Utils (Display (..))
 
 newtype StateTable item conflicts_allowed = StateTable (Map Int (State item conflicts_allowed)) deriving Show
 
--- TODO: decide if this is needed
--- pattern State :: Int -> ItemSet -> (ActionTable conflicts_allowed) -> (GotoTable conflicts_allowed) -> (State conflicts_allowed)
--- pattern State n s a g <- StateC n s a g
--- {-# COMPLETE State #-}
 data State item conflicts_allowed = State Int (ItemSet item) (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
 
 data Action = Shift Int | Reduce Rule | Accept deriving Show
