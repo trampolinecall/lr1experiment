@@ -17,6 +17,7 @@ executable lr1experiment
       Grammar
       Item
       ItemSet
+      LR0
       Parser
       SLR
       StateTable

@@ -6,14 +6,18 @@ module Grammar
     , pattern Rule
     , GrammarConstructionError
     , make_grammar
+    , all_terminals
     ) where
 
 import Data.Function ((&))
 import Data.List (intercalate)
+import Data.Maybe (mapMaybe)
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Utils
 
-import Symbols (NonTerminal (..), Symbol)
+import Symbols (NonTerminal (..), Symbol (..), Terminal (EOF))
 
 data Grammar = Grammar
     { all_rules :: [Rule]
@@ -49,3 +53,19 @@ make_grammar augment_rules rest_of_rules
         rest_of_rules_converted = zipWith (\i (nt, prod) -> RuleC i nt prod) [length augment_rules ..] rest_of_rules
 
         augment_nonterminals = augment_rules_converted & map (\(Rule _ nt _) -> nt)
+
+all_terminals :: Grammar -> Set Terminal
+all_terminals (Grammar rules _ _) =
+    rules
+        & map
+            ( \(Rule _ _ prod) ->
+                prod
+                    & mapMaybe
+                        ( \case
+                            S'NonTerminal _ -> Nothing
+                            S'Terminal t -> Just t
+                        )
+                    & Set.fromList
+            )
+        & Set.unions
+        & (<> (Set.singleton EOF))

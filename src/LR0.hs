@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 
-module SLR (generate) where
+module LR0 (generate) where
 
 import Control.Arrow (first, second)
 import qualified Control.Monad.Trans.State as StateMonad
@@ -9,26 +9,22 @@ import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 
-import FirstAndFollowSets (find_firsts, find_follows)
 import Grammar (Grammar, pattern Rule)
 import qualified Grammar
-import Item (LR1Item, pattern LR1Item)
+import Item (LR0Item, pattern LR0Item)
 import qualified Item
-import ItemSet (ItemSet, augment_items, new_item_set_lr1)
+import ItemSet (ItemSet, augment_items, new_item_set_lr0)
 import qualified ItemSet
 import StateTable (Action (..), ActionOrConflict (..), State (..), StateTable)
 import qualified StateTable
-import Symbols (Symbol (..), Terminal (..))
+import Symbols (Symbol (..))
 
-generate :: Grammar -> StateTable LR1Item ()
+generate :: Grammar -> StateTable LR0Item ()
 generate grammar =
-    let first_set = new_item_set_lr1 follow_sets (Grammar.all_rules grammar) 0 (Set.map (\i -> Item.lr0_to_lr1 i EOF) $ augment_items grammar)
+    let first_set = new_item_set_lr0 (Grammar.all_rules grammar) 0 (augment_items grammar)
     in StateMonad.evalState (go [] [first_set]) 1
     where
-        first_sets = find_firsts grammar
-        follow_sets = find_follows (Map.singleton (Grammar.augment_nt grammar) (Set.singleton EOF)) (Grammar.all_rules grammar) first_sets
-
-        go :: [State LR1Item ()] -> [ItemSet LR1Item] -> StateMonad.State Int (StateTable LR1Item ())
+        go :: [State LR0Item ()] -> [ItemSet LR0Item] -> StateMonad.State Int (StateTable LR0Item ())
         go states (current_set : more_sets) = do
             let current_set_number = ItemSet.number current_set
             let symbols_after_dot =
@@ -46,16 +42,15 @@ generate grammar =
                                     -- fromJust should be safe because the symbol after the dot is a terminal
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
                                     set_number <- get_state_number_and_inc
-                                    let next_set = new_item_set_lr1 follow_sets (Grammar.all_rules grammar) set_number new_kernel
+                                    let next_set = new_item_set_lr0 (Grammar.all_rules grammar) set_number new_kernel
 
                                     pure ([Map.singleton term (Shift $ ItemSet.number next_set)], [next_set])
                                 Nothing ->
                                     pure
                                         ( map
-                                            ( \(LR1Item rule@(Rule _ r_nt _) _ lookahead) ->
-                                                if r_nt == Grammar.augment_nt grammar
-                                                    then Map.singleton lookahead Accept
-                                                    else Map.singleton lookahead (Reduce rule)
+                                            ( \(LR0Item rule@(Rule _ r_nt _) _) ->
+                                                let action = if r_nt == Grammar.augment_nt grammar then Accept else Reduce rule
+                                                in Grammar.all_terminals grammar & Set.toList & map (\term -> (term, action)) & Map.fromList
                                             )
                                             (Set.toList items)
                                         , []
@@ -75,7 +70,7 @@ generate grammar =
                                 Just (S'NonTerminal nt) -> do
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
                                     set_number <- get_state_number_and_inc
-                                    let next_set = new_item_set_lr1 follow_sets (Grammar.all_rules grammar) set_number new_kernel
+                                    let next_set = new_item_set_lr0 (Grammar.all_rules grammar) set_number new_kernel
 
                                     pure (Map.singleton nt (ItemSet.number next_set), [next_set])
                                 _ -> pure (Map.empty, [])

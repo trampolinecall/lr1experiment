@@ -50,16 +50,9 @@ find_firsts grammar = repeat_until_unchanging add_firsts Map.empty
                 & Map.unionsWith (<>)
                 & Map.unionWith (<>) firsts
 
-find_follows :: NonTerminal -> [Rule] -> FirstSets -> FollowSets
-find_follows augment rules first_sets = repeat_until_unchanging add_follows initial
+find_follows :: FollowSets -> [Rule] -> FirstSets -> FollowSets
+find_follows initial_sets rules first_sets = repeat_until_unchanging add_follows initial_sets
     where
-        initial =
-            rules
-                & map
-                    (\(Rule _ nt _) -> Map.singleton nt Set.empty)
-                & Map.unionsWith (<>)
-                & Map.unionWith (<>) (Map.singleton augment (Set.singleton EOF))
-
         add_follows follows =
             rules
                 & concatMap

@@ -32,13 +32,13 @@ import ItemSet (ItemSet)
 import Symbols (NonTerminal, Terminal (..))
 import Utils (Display (..))
 
-newtype StateTable conflicts_allowed = StateTable (Map Int (State conflicts_allowed)) deriving Show
+newtype StateTable item conflicts_allowed = StateTable (Map Int (State item conflicts_allowed)) deriving Show
 
 -- TODO: decide if this is needed
 -- pattern State :: Int -> ItemSet -> (ActionTable conflicts_allowed) -> (GotoTable conflicts_allowed) -> (State conflicts_allowed)
 -- pattern State n s a g <- StateC n s a g
 -- {-# COMPLETE State #-}
-data State conflicts_allowed = State Int ItemSet (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
+data State item conflicts_allowed = State Int (ItemSet item) (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
 
 data Action = Shift Int | Reduce Rule | Accept deriving Show
 
@@ -64,7 +64,7 @@ instance Display Action where
     display (Shift next_state) = "s" ++ display next_state
     display (Reduce (Rule rule_num _ _)) = "r" ++ display rule_num
     display Accept = "acc"
-instance Display (StateTable conflict_functor) where
+instance Display (StateTable item conflict_functor) where
     display (StateTable states) =
         Table.tableString $
             Table.columnHeaderTableS
@@ -88,8 +88,8 @@ instance Display (StateTable conflict_functor) where
             display_action_or_conflict (SingleAction a) = display a
             display_action_or_conflict (Conflict _ as) = intercalate "/" (map display as)
 
-data DuplicateState conflicts_allowed = DuplicateState (State conflicts_allowed) (State conflicts_allowed)
-new :: [State conflicts_allowed] -> Either (DuplicateState conflicts_allowed) (StateTable conflicts_allowed)
+data DuplicateState item conflicts_allowed = DuplicateState (State item conflicts_allowed) (State item conflicts_allowed)
+new :: [State item conflicts_allowed] -> Either (DuplicateState item conflicts_allowed) (StateTable item conflicts_allowed)
 new =
     fmap StateTable
         . foldlM
@@ -99,7 +99,7 @@ new =
             )
             Map.empty
 
-remove_conflicts :: StateTable () -> Either TableConflict (StateTable Void)
+remove_conflicts :: StateTable item () -> Either TableConflict (StateTable item Void)
 remove_conflicts (StateTable states) = StateTable <$> (mapM remove_conflict_from_state states)
     where
         remove_conflict_from_state (State number set actions gotos) =
@@ -117,5 +117,5 @@ remove_conflicts (StateTable states) = StateTable <$> (mapM remove_conflict_from
                     )
                     gotos
 
-get_state :: Int -> StateTable conflicts_allowed -> Maybe (State conflicts_allowed)
+get_state :: Int -> StateTable item conflicts_allowed -> Maybe (State item conflicts_allowed)
 get_state n (StateTable states) = Map.lookup n states

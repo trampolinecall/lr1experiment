@@ -23,7 +23,7 @@ instance Display AST where
 data ParseError = ParseError -- TODO
     deriving Show
 
-parse :: StateTable Void -> [String] -> Either ParseError [AST]
+parse :: StateTable item Void -> [String] -> Either ParseError [AST]
 parse table input = go [] input
     where
         go stack input =
