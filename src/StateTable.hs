@@ -31,8 +31,10 @@ import qualified Text.Layout.Table as Table
 import FirstAndFollowSets (find_firsts, find_follows)
 import Grammar (Grammar, Rule, pattern Rule)
 import qualified Grammar
-import ItemAndSet (ItemSet, ItemSetInterner, get_first_item_set, new_item_set, new_item_set_interner, pattern Item)
-import qualified ItemAndSet
+import Item (pattern Item)
+import qualified Item
+import ItemSet (ItemSet, get_first_item_set, new_item_set)
+import qualified ItemSet
 import Symbols (NonTerminal, Symbol (..), Terminal (..))
 import Utils (Display (..))
 
@@ -93,17 +95,17 @@ generate grammar =
             first_set <- StateMonad.state $ get_first_item_set grammar follow_sets
             go Map.empty [first_set]
         )
-        new_item_set_interner
+        ItemSet.new_interner
     where
         first_sets = find_firsts grammar
         follow_sets = find_follows grammar first_sets
 
-        go :: Map Int (State ()) -> [ItemSet] -> StateMonad.State ItemSetInterner (StateTable ())
+        go :: Map Int (State ()) -> [ItemSet] -> StateMonad.State ItemSet.Interner (StateTable ())
         go current_table (current_set : more_sets) = do
-            let current_set_number = ItemAndSet.number current_set
+            let current_set_number = ItemSet.number current_set
             let symbols_after_dot =
-                    ItemAndSet.item_set_items current_set
-                        & Set.map (\item -> Map.singleton (ItemAndSet.item_sym_after_dot item) (Set.singleton item))
+                    ItemSet.item_set_items current_set
+                        & Set.map (\item -> Map.singleton (Item.sym_after_dot item) (Set.singleton item))
                         & Map.unionsWith (<>)
 
             (actions, new_sets_from_actions) <-
@@ -114,10 +116,10 @@ generate grammar =
                             case symbol_after_dot of
                                 Just (S'Terminal term) -> do
                                     -- fromJust should be safe because the symbol after the dot is a terminal
-                                    let new_kernel = Set.map (fromJust . ItemAndSet.item_move_forward) items
+                                    let new_kernel = Set.map (fromJust . Item.move_forward) items
                                     (next_set, set_is_new) <- StateMonad.state $ new_item_set (Grammar.all_rules grammar) follow_sets new_kernel
 
-                                    pure ([Map.singleton term (Shift $ ItemAndSet.number next_set)], if set_is_new then [next_set] else [])
+                                    pure ([Map.singleton term (Shift $ ItemSet.number next_set)], if set_is_new then [next_set] else [])
                                 Nothing ->
                                     pure
                                         ( map
@@ -142,10 +144,10 @@ generate grammar =
                         ( \(symbol_after_dot, items) ->
                             case symbol_after_dot of
                                 Just (S'NonTerminal nt) -> do
-                                    let new_kernel = Set.map (fromJust . ItemAndSet.item_move_forward) items
+                                    let new_kernel = Set.map (fromJust . Item.move_forward) items
                                     (next_set, set_is_new) <- StateMonad.state $ new_item_set (Grammar.all_rules grammar) follow_sets new_kernel
 
-                                    pure (Map.singleton nt (ItemAndSet.number next_set), if set_is_new then [next_set] else [])
+                                    pure (Map.singleton nt (ItemSet.number next_set), if set_is_new then [next_set] else [])
                                 _ -> pure (Map.empty, [])
                         )
                     & fmap unzip

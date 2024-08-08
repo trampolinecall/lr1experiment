@@ -15,7 +15,8 @@ executable lr1experiment
   other-modules:
       FirstAndFollowSets
       Grammar
-      ItemAndSet
+      Item
+      ItemSet
       Parser
       StateTable
       Symbols
