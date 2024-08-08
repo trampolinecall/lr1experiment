@@ -3,8 +3,8 @@
 module ItemSet
     ( ItemSet (number, kernel, closure)
     , pattern ItemSet
-    -- , Interner
-    -- , new_interner
+    , Interner
+    , new_interner
     , new_item_set_lr0
     , new_item_set_lr1
     , new_item_set_lr1_with_follows
@@ -13,6 +13,7 @@ module ItemSet
     ) where
 
 import Data.Function ((&))
+import qualified Data.List as List (find)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -20,7 +21,7 @@ import qualified Data.Set as Set
 import FirstAndFollowSets (FirstSets, FollowSets, find_follows)
 import Grammar (Grammar, Rule, pattern Rule)
 import qualified Grammar as Grammar
-import Item (LR0Item, LR1Item, pattern LR0Item, pattern LR1Item)
+import Item (Item, LR0Item, LR1Item, pattern LR0Item, pattern LR1Item)
 import qualified Item
 import Symbols (NonTerminal, Symbol (S'NonTerminal))
 
@@ -34,26 +35,33 @@ data ItemSet item = ItemSetC
     }
     deriving Show
 
--- TODO: only LALR uses interning / merging item sets
--- data Interner item = Interner Int [ItemSet item]
---
--- new_interner :: Interner item
--- new_interner = Interner 0 []
+data Interner item = Interner Int [ItemSet item]
 
-new_item_set_lr0 :: [Rule] -> Int -> Set LR0Item -> ItemSet LR0Item
-new_item_set_lr0 rules number kernel =
+new_interner :: Interner item
+new_interner = Interner 0 []
+
+intern :: (Eq item, Ord item) => Set item -> Set item -> Interner item -> ((ItemSet item, Bool), Interner item)
+intern kernel closure interner@(Interner number sets) =
+    case List.find (\ (ItemSetC _ f_kernel f_closure) -> f_kernel <> f_closure == kernel <> closure) sets of
+        Just found_set -> ((found_set, False), interner)
+        Nothing ->
+            let new_item_set = ItemSetC number kernel closure
+            in ((new_item_set, True), Interner (number + 1) (new_item_set : sets))
+
+new_item_set_lr0 :: [Rule] -> Set LR0Item -> Interner LR0Item -> ((ItemSet LR0Item, Bool), Interner LR0Item)
+new_item_set_lr0 rules kernel interner =
     let closure = find_closure_lr0 rules kernel
-    in ItemSetC number kernel closure
+    in intern kernel closure interner
 
-new_item_set_lr1 :: FirstSets -> [Rule] -> Int -> Set LR1Item -> ItemSet LR1Item
-new_item_set_lr1 first_sets rules number kernel =
+new_item_set_lr1 :: FirstSets -> [Rule] -> Set LR1Item -> Interner LR1Item -> ((ItemSet LR1Item, Bool), Interner LR1Item)
+new_item_set_lr1 first_sets rules kernel interner =
     let closure = find_closure_lr1 (Left first_sets) rules kernel
-    in ItemSetC number kernel closure
+    in intern kernel closure interner
 
-new_item_set_lr1_with_follows :: FollowSets -> [Rule] -> Int -> Set LR1Item -> ItemSet LR1Item
-new_item_set_lr1_with_follows follows rules number kernel =
+new_item_set_lr1_with_follows :: FollowSets -> [Rule] -> Set LR1Item -> Interner LR1Item -> ((ItemSet LR1Item, Bool), Interner LR1Item)
+new_item_set_lr1_with_follows follows rules kernel interner =
     let closure = find_closure_lr1 (Right follows) rules kernel
-    in ItemSetC number kernel closure
+    in intern kernel closure interner
 
 item_set_items :: Ord item => ItemSet item -> Set item
 item_set_items (ItemSetC _ k c) = k <> c

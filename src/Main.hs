@@ -65,55 +65,54 @@ main =
             --                     , (factor, [S'Terminal id])
             --                     ]
 
-            -- let json = NonTerminal "json"
-            -- let value = NonTerminal "value"
-            -- let object = NonTerminal "object"
-            -- let members = NonTerminal "members"
-            -- let member = NonTerminal "member"
-            -- let null = Terminal "null"
-            -- let obrace = Terminal "{"
-            -- let cbrace = Terminal "}"
-            -- let comma = Terminal ","
-            -- let colon = Terminal ":"
-            -- let string = Terminal "STRING"
-            -- grammar <-
-            --     ExceptT $
-            --         pure $
-            --             convert_err $
-            --                 Grammar.make_grammar
-            --                     [ (json, [S'NonTerminal value])
-            --                     ]
-            --                     [ (value, [S'NonTerminal object])
-            --                     , (value, [S'Terminal null])
-            --                     , (object, [S'Terminal obrace, S'NonTerminal members, S'Terminal cbrace])
-            --                     , (members, [S'NonTerminal members, S'Terminal comma, S'NonTerminal member])
-            --                     , (members, [S'NonTerminal member])
-            --                     , (member, [S'Terminal string, S'Terminal colon, S'NonTerminal value])
-            --                     ]
-
-            -- TODO: this is an lr(1) grammar that is not lalr or slr
-            let ntS = NonTerminal "S"
-            let ntE = NonTerminal "E"
-            let ntF = NonTerminal "F"
-            let ta = Terminal "a"
-            let tb = Terminal "b"
-            let tc = Terminal "c"
-            let td = Terminal "d"
-            let te = Terminal "e"
-
+            let json = NonTerminal "json"
+            let value = NonTerminal "value"
+            let object = NonTerminal "object"
+            let members = NonTerminal "members"
+            let member = NonTerminal "member"
+            let null = Terminal "null"
+            let obrace = Terminal "{"
+            let cbrace = Terminal "}"
+            let comma = Terminal ","
+            let colon = Terminal ":"
+            let string = Terminal "STRING"
             grammar <-
                 ExceptT $
                     pure $
                         convert_err $
                             Grammar.make_grammar
-                                [ (ntS, [S'Terminal ta, S'NonTerminal ntE, S'Terminal tc])
-                                , (ntS, [S'Terminal ta, S'NonTerminal ntF, S'Terminal td])
-                                , (ntS, [S'Terminal tb, S'NonTerminal ntF, S'Terminal tc])
-                                , (ntS, [S'Terminal tb, S'NonTerminal ntE, S'Terminal td])
+                                [ (json, [S'NonTerminal value])
                                 ]
-                                [ (ntE, [S'Terminal te])
-                                , (ntF, [S'Terminal te])
+                                [ (value, [S'NonTerminal object])
+                                , (value, [S'Terminal null])
+                                , (object, [S'Terminal obrace, S'NonTerminal members, S'Terminal cbrace])
+                                , (members, [S'NonTerminal members, S'Terminal comma, S'NonTerminal member])
+                                , (members, [S'NonTerminal member])
+                                , (member, [S'Terminal string, S'Terminal colon, S'NonTerminal value])
                                 ]
+
+            -- let ntS = NonTerminal "S"
+            -- let ntE = NonTerminal "E"
+            -- let ntF = NonTerminal "F"
+            -- let ta = Terminal "a"
+            -- let tb = Terminal "b"
+            -- let tc = Terminal "c"
+            -- let td = Terminal "d"
+            -- let te = Terminal "e"
+            --
+            -- grammar <-
+            --     ExceptT $
+            --         pure $
+            --             convert_err $
+            --                 Grammar.make_grammar
+            --                     [ (ntS, [S'Terminal ta, S'NonTerminal ntE, S'Terminal tc])
+            --                     , (ntS, [S'Terminal ta, S'NonTerminal ntF, S'Terminal td])
+            --                     , (ntS, [S'Terminal tb, S'NonTerminal ntF, S'Terminal tc])
+            --                     , (ntS, [S'Terminal tb, S'NonTerminal ntE, S'Terminal td])
+            --                     ]
+            --                     [ (ntE, [S'Terminal te])
+            --                     , (ntF, [S'Terminal te])
+            --                     ]
 
             lift $ putStrLn (display grammar)
 

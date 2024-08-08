@@ -22,13 +22,17 @@ import Symbols (Symbol (..), Terminal (..))
 
 generate :: Grammar -> StateTable LR1Item ()
 generate grammar =
-    let first_set = new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) 0 (Set.map (\i -> Item.lr0_to_lr1 i EOF) $ augment_items grammar)
-    in StateMonad.evalState (go [] [first_set]) 1
+    StateMonad.evalState
+        ( do
+            (first_set, _) <- StateMonad.state $ new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) (Set.map (\i -> Item.lr0_to_lr1 i EOF) $ augment_items grammar)
+            go [] [first_set]
+        )
+        ItemSet.new_interner
     where
         first_sets = find_firsts grammar
         follow_sets = find_follows (Map.singleton (Grammar.augment_nt grammar) (Set.singleton EOF)) (Grammar.all_rules grammar) first_sets
 
-        go :: [State LR1Item ()] -> [ItemSet LR1Item] -> StateMonad.State Int (StateTable LR1Item ())
+        go :: [State LR1Item ()] -> [ItemSet LR1Item] -> StateMonad.State (ItemSet.Interner LR1Item) (StateTable LR1Item ())
         go states (current_set : more_sets) = do
             let current_set_number = ItemSet.number current_set
             let symbols_after_dot =
@@ -45,10 +49,9 @@ generate grammar =
                                 Just (S'Terminal term) -> do
                                     -- fromJust should be safe because the symbol after the dot is a terminal
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
-                                    set_number <- get_state_number_and_inc
-                                    let next_set = new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) set_number new_kernel
+                                    (next_set, set_is_new) <- StateMonad.state $ new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) new_kernel
 
-                                    pure ([Map.singleton term (Shift $ ItemSet.number next_set)], [next_set])
+                                    pure ([Map.singleton term (Shift $ ItemSet.number next_set)], if set_is_new then [next_set] else [])
                                 Nothing ->
                                     pure
                                         ( map
@@ -74,10 +77,9 @@ generate grammar =
                             case symbol_after_dot of
                                 Just (S'NonTerminal nt) -> do
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
-                                    set_number <- get_state_number_and_inc
-                                    let next_set = new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) set_number new_kernel
+                                    (next_set, set_is_new) <- StateMonad.state $ new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) new_kernel
 
-                                    pure (Map.singleton nt (ItemSet.number next_set), [next_set])
+                                    pure (Map.singleton nt (ItemSet.number next_set), if set_is_new then [next_set] else [])
                                 _ -> pure (Map.empty, [])
                         )
                     & fmap unzip
@@ -92,7 +94,3 @@ generate grammar =
                 Right st -> pure st
                 Left (StateTable.DuplicateState s1 s2) -> error $ "duplicate state: " ++ show s1 ++ " " ++ show s2
 
-        get_state_number_and_inc = do
-            n <- StateMonad.get
-            StateMonad.put (n + 1)
-            pure n
