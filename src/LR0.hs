@@ -44,7 +44,7 @@ instance Item LR0Item where
                         let to_add_to_closure = Set.map new_item_with_index_0 $ Set.fromList $ Grammar.filter_rules_with_nt nt_after_dot grammar
                         in go
                             (current_closure <> to_add_to_closure)
-                            (more ++ filter (\i -> not (Set.member i kernel) && not (Set.member i current_closure)) (Set.toAscList to_add_to_closure))
+                            (more ++ filter (\i -> not (Set.member i kernel) && not (Set.member i current_closure)) (Set.toList to_add_to_closure))
                     _ -> go current_closure more
 
 generate :: Grammar -> StateTable LR0Item ()

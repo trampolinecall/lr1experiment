@@ -65,7 +65,7 @@ find_follows initial_sets rules first_sets = repeat_until_unchanging add_follows
                                             let firsts_of_after = firsts_of_sequence first_sets after
                                             in Map.singleton current_symbol $
                                                 ( firsts_of_after
-                                                    & Set.toAscList
+                                                    & Set.toList
                                                     & mapMaybe
                                                         ( \case
                                                             ToE'Epsilon -> Nothing
