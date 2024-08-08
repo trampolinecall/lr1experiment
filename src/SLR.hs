@@ -66,7 +66,7 @@ generate grammar =
                                 _ -> pure ([], [])
                         )
                     & fmap unzip
-                    & fmap (first (Map.unionsWith make_conflict . map (Map.map SingleAction) . concat))
+                    & fmap (first (Map.unionsWith (<>) . map (Map.map SingleAction) . concat))
                     & fmap (second concat)
 
             (gotos, new_sets_from_gotos) <-
@@ -83,7 +83,7 @@ generate grammar =
                                 _ -> pure (Map.empty, [])
                         )
                     & fmap unzip
-                    & fmap (first (Map.unionsWith make_conflict . map (Map.map SingleAction)))
+                    & fmap (first (Map.unionsWith (<>) . map (Map.map SingleAction)))
                     & fmap (second concat)
 
             go
@@ -95,7 +95,3 @@ generate grammar =
                 Right st -> pure st
                 Left (StateTable.DuplicateState s1 s2) -> error $ "duplicate state: " ++ show s1 ++ " " ++ show s2
 
-        make_conflict (SingleAction a) (SingleAction b) = Conflict () ([a, b])
-        make_conflict (SingleAction as) (Conflict _ bs) = Conflict () (as : bs)
-        make_conflict (Conflict _ as) (SingleAction bs) = Conflict () (bs : as)
-        make_conflict (Conflict _ as) (Conflict _ bs) = Conflict () (as ++ bs)

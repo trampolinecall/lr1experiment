@@ -1,5 +1,6 @@
 {-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -48,6 +49,11 @@ data ActionOrConflict conflicts_allowed a
     = SingleAction a
     | Conflict conflicts_allowed [a]
     deriving Show
+instance Semigroup (ActionOrConflict () a) where
+    (SingleAction a) <> (SingleAction b) = Conflict () ([a, b])
+    (SingleAction as) <> (Conflict _ bs) = Conflict () (as : bs)
+    (Conflict _ as) <> (SingleAction bs) = Conflict () (bs : as)
+    (Conflict _ as) <> (Conflict _ bs) = Conflict () (as ++ bs)
 
 data TableConflict
     = ActionConflict [Action] -- TODO: make this better
