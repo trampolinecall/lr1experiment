@@ -74,15 +74,6 @@ find_closure_lr1 follows rules kernel =
     let lr0_closure = find_closure_lr0 rules (Set.map Item.lr1_to_lr0 kernel)
     in Set.unions $ Set.map lr0_to_lr1 lr0_closure
     where
-        -- TODO: this is only used in LR(1) and LALR parsers
-        -- follows =
-        --     find_follows
-        --         ( kernel
-        --             & Set.map (\(LR1Item (Rule _ nt _) _ lookahead) -> Map.singleton nt (Set.singleton lookahead))
-        --             & Map.unionsWith (<>)
-        --         )
-        --         rules
-        --         firsts
 
         lr0_to_lr1 lr0_item@(LR0Item (Rule _ nt _) _) = Set.map (Item.lr0_to_lr1 lr0_item) (follows Map.! nt)
 

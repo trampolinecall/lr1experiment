@@ -13,7 +13,7 @@ import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 import qualified Grammar
 import Parser (parse)
 import qualified StateTable
-import qualified SLR
+import qualified LR1
 import Symbols (NonTerminal (..), Symbol (..), Terminal (..))
 import Utils (Display (..))
 
@@ -102,7 +102,7 @@ main = do
                                     , (ntF, [S'Terminal te])
                                     ]
 
-                let state_table = SLR.generate grammar
+                let state_table = LR1.generate grammar
                 state_table <- ExceptT $ pure $ convert_err $ StateTable.remove_conflicts state_table
 
                 lift $ putStrLn (display grammar)

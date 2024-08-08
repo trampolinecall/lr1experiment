@@ -18,6 +18,7 @@ executable lr1experiment
       Item
       ItemSet
       LR0
+      LR1
       Parser
       SLR
       StateTable
