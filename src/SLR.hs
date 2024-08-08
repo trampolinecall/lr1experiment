@@ -14,7 +14,7 @@ import Grammar (Grammar, pattern Rule)
 import qualified Grammar
 import Item (LR1Item, pattern LR1Item)
 import qualified Item
-import ItemSet (ItemSet, augment_items, new_item_set_lr1)
+import ItemSet (ItemSet, augment_items, new_item_set_lr1_with_follows)
 import qualified ItemSet
 import StateTable (Action (..), ActionOrConflict (..), State (..), StateTable)
 import qualified StateTable
@@ -22,7 +22,7 @@ import Symbols (Symbol (..), Terminal (..))
 
 generate :: Grammar -> StateTable LR1Item ()
 generate grammar =
-    let first_set = new_item_set_lr1 follow_sets (Grammar.all_rules grammar) 0 (Set.map (\i -> Item.lr0_to_lr1 i EOF) $ augment_items grammar)
+    let first_set = new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) 0 (Set.map (\i -> Item.lr0_to_lr1 i EOF) $ augment_items grammar)
     in StateMonad.evalState (go [] [first_set]) 1
     where
         first_sets = find_firsts grammar
@@ -46,7 +46,7 @@ generate grammar =
                                     -- fromJust should be safe because the symbol after the dot is a terminal
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
                                     set_number <- get_state_number_and_inc
-                                    let next_set = new_item_set_lr1 follow_sets (Grammar.all_rules grammar) set_number new_kernel
+                                    let next_set = new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) set_number new_kernel
 
                                     pure ([Map.singleton term (Shift $ ItemSet.number next_set)], [next_set])
                                 Nothing ->
@@ -75,7 +75,7 @@ generate grammar =
                                 Just (S'NonTerminal nt) -> do
                                     let new_kernel = Set.map (fromJust . Item.move_forward) items
                                     set_number <- get_state_number_and_inc
-                                    let next_set = new_item_set_lr1 follow_sets (Grammar.all_rules grammar) set_number new_kernel
+                                    let next_set = new_item_set_lr1_with_follows follow_sets (Grammar.all_rules grammar) set_number new_kernel
 
                                     pure (Map.singleton nt (ItemSet.number next_set), [next_set])
                                 _ -> pure (Map.empty, [])

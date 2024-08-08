@@ -10,7 +10,7 @@ import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import FirstAndFollowSets (find_firsts, find_follows)
+import FirstAndFollowSets (find_firsts)
 import Grammar (Grammar, pattern Rule)
 import qualified Grammar
 import Item (LR1Item, pattern LR1Item)
@@ -97,19 +97,7 @@ generate grammar =
         new_item_set :: Set LR1Item -> StateMonad.State Int (ItemSet LR1Item)
         new_item_set kernel = do
             number <- get_state_number_and_inc
-            let follow_sets =
-                    find_follows
-                        ( kernel
-                            & Set.map (\(LR1Item (Rule _ nt _) _ lookahead) -> Map.singleton nt (Set.singleton lookahead))
-                            & Map.unionsWith (<>)
-                        )
-                        ( kernel
-                            & Set.map (\(LR1Item r _ _) -> r)
-
-                            & Set.toList
-                        )
-                        first_sets
-            pure $ new_item_set_lr1 follow_sets (Grammar.all_rules grammar) number kernel
+            pure $ new_item_set_lr1 first_sets (Grammar.all_rules grammar) number kernel
 
         get_state_number_and_inc = do
             n <- StateMonad.get

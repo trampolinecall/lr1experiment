@@ -7,6 +7,7 @@ module ItemSet
     -- , new_interner
     , new_item_set_lr0
     , new_item_set_lr1
+    , new_item_set_lr1_with_follows
     , augment_items
     , item_set_items
     ) where
@@ -16,10 +17,10 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import FirstAndFollowSets (FollowSets)
+import FirstAndFollowSets (FirstSets, FollowSets, find_follows)
 import Grammar (Grammar, Rule, pattern Rule)
 import qualified Grammar as Grammar
-import Item (LR0Item, LR1Item, pattern LR0Item)
+import Item (LR0Item, LR1Item, pattern LR0Item, pattern LR1Item)
 import qualified Item
 import Symbols (NonTerminal, Symbol (S'NonTerminal))
 
@@ -44,9 +45,14 @@ new_item_set_lr0 rules number kernel =
     let closure = find_closure_lr0 rules kernel
     in ItemSetC number kernel closure
 
-new_item_set_lr1 :: FollowSets -> [Rule] -> Int -> Set LR1Item -> ItemSet LR1Item
-new_item_set_lr1 follows rules number kernel =
-    let closure = find_closure_lr1 follows rules kernel
+new_item_set_lr1 :: FirstSets -> [Rule] -> Int -> Set LR1Item -> ItemSet LR1Item
+new_item_set_lr1 first_sets rules number kernel =
+    let closure = find_closure_lr1 (Left first_sets) rules kernel
+    in ItemSetC number kernel closure
+
+new_item_set_lr1_with_follows :: FollowSets -> [Rule] -> Int -> Set LR1Item -> ItemSet LR1Item
+new_item_set_lr1_with_follows follows rules number kernel =
+    let closure = find_closure_lr1 (Right follows) rules kernel
     in ItemSetC number kernel closure
 
 item_set_items :: Ord item => ItemSet item -> Set item
@@ -69,13 +75,23 @@ find_closure_lr0 rules kernel = go Set.empty (Set.toAscList kernel)
                         (more ++ filter (\i -> not (Set.member i kernel) && not (Set.member i current_closure)) (Set.toAscList to_add_to_closure))
                 _ -> go current_closure more
 
-find_closure_lr1 :: FollowSets -> [Rule] -> Set LR1Item -> Set LR1Item
-find_closure_lr1 follows rules kernel =
-    let lr0_closure = find_closure_lr0 rules (Set.map Item.lr1_to_lr0 kernel)
-    in Set.unions $ Set.map lr0_to_lr1 lr0_closure
+find_closure_lr1 :: Either FirstSets FollowSets -> [Rule] -> Set LR1Item -> Set LR1Item
+find_closure_lr1 follow_sets_or_first_sets rules kernel = Set.unions $ Set.map lr0_to_lr1 lr0_closure
     where
+        lr0_closure = find_closure_lr0 rules (Set.map Item.lr1_to_lr0 kernel)
 
-        lr0_to_lr1 lr0_item@(LR0Item (Rule _ nt _) _) = Set.map (Item.lr0_to_lr1 lr0_item) (follows Map.! nt)
+        follow_sets = case follow_sets_or_first_sets of
+            Right follow_sets -> follow_sets
+            Left first_sets ->
+                find_follows
+                    ( kernel
+                        & Set.map (\(LR1Item (Rule _ nt _) _ lookahead) -> Map.singleton nt (Set.singleton lookahead))
+                        & Map.unionsWith (<>)
+                    )
+                    ((kernel & Set.map Item.rule & Set.toList) <> (lr0_closure & Set.map Item.rule & Set.toList))
+                    first_sets
+
+        lr0_to_lr1 lr0_item@(LR0Item (Rule _ nt _) _) = Set.map (Item.lr0_to_lr1 lr0_item) (follow_sets Map.! nt)
 
 make_item_index_0_for_all_rules_with_nt :: [Rule] -> NonTerminal -> Set LR0Item
 make_item_index_0_for_all_rules_with_nt rules nt =
