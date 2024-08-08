@@ -11,6 +11,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 
 import qualified Grammar
+import qualified LALR
 import qualified LR0
 import qualified LR1
 import Parser (parse)
@@ -132,6 +133,6 @@ main =
             test_generator "LR(0)" LR0.generate
             test_generator "SLR" SLR.generate
             test_generator "LR(1)" LR1.generate
-            -- test_generator "LALR" LALR.generate TODO
+            test_generator "LALR" LALR.generate
 
             pure ()

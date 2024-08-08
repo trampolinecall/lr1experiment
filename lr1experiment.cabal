@@ -17,6 +17,7 @@ executable lr1experiment
       Grammar
       Item
       ItemSet
+      LALR
       LR0
       LR1
       Parser
