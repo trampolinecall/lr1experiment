@@ -6,44 +6,38 @@
 
 module StateTable
     ( StateTable
-    , State
-    , pattern State
+    , DuplicateState (..)
+    , new
+    , State (..)
     , GotoTable
     , ActionTable
     , ActionOrConflict (..)
     , Action (..)
-    , generate
     , remove_conflicts
     , get_state
     ) where
 
-import Control.Arrow (first, second)
-import qualified Control.Monad.Trans.State as StateMonad
+import Data.Foldable (foldlM)
 import Data.Function ((&))
 import Data.List (intercalate)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 import Data.Void (Void)
 import qualified Text.Layout.Table as Table
 
-import FirstAndFollowSets (find_firsts, find_follows)
-import Grammar (Grammar, Rule, pattern Rule)
-import qualified Grammar
-import Item (pattern Item)
-import qualified Item
-import ItemSet (ItemSet, get_first_item_set, new_item_set)
-import qualified ItemSet
-import Symbols (NonTerminal, Symbol (..), Terminal (..))
+import Grammar (Rule, pattern Rule)
+import ItemSet (ItemSet)
+import Symbols (NonTerminal, Terminal (..))
 import Utils (Display (..))
 
 newtype StateTable conflicts_allowed = StateTable (Map Int (State conflicts_allowed)) deriving Show
 
-pattern State :: Int -> ItemSet -> (ActionTable conflicts_allowed) -> (GotoTable conflicts_allowed) -> (State conflicts_allowed)
-pattern State n s a g <- StateC n s a g
-{-# COMPLETE State #-}
-data State conflicts_allowed = StateC Int ItemSet (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
+-- TODO: decide if this is needed
+-- pattern State :: Int -> ItemSet -> (ActionTable conflicts_allowed) -> (GotoTable conflicts_allowed) -> (State conflicts_allowed)
+-- pattern State n s a g <- StateC n s a g
+-- {-# COMPLETE State #-}
+data State conflicts_allowed = State Int ItemSet (ActionTable conflicts_allowed) (GotoTable conflicts_allowed) deriving Show
 
 data Action = Shift Int | Reduce Rule | Accept deriving Show
 
@@ -88,87 +82,22 @@ instance Display (StateTable conflict_functor) where
             display_action_or_conflict (SingleAction a) = display a
             display_action_or_conflict (Conflict _ as) = intercalate "/" (map display as)
 
-generate :: Grammar -> StateTable ()
-generate grammar =
-    StateMonad.evalState
-        ( do
-            first_set <- StateMonad.state $ get_first_item_set grammar follow_sets
-            go Map.empty [first_set]
-        )
-        ItemSet.new_interner
-    where
-        first_sets = find_firsts grammar
-        follow_sets = find_follows grammar first_sets
-
-        go :: Map Int (State ()) -> [ItemSet] -> StateMonad.State ItemSet.Interner (StateTable ())
-        go current_table (current_set : more_sets) = do
-            let current_set_number = ItemSet.number current_set
-            let symbols_after_dot =
-                    ItemSet.item_set_items current_set
-                        & Set.map (\item -> Map.singleton (Item.sym_after_dot item) (Set.singleton item))
-                        & Map.unionsWith (<>)
-
-            (actions, new_sets_from_actions) <-
-                symbols_after_dot
-                    & Map.toList
-                    & mapM
-                        ( \(symbol_after_dot, items) ->
-                            case symbol_after_dot of
-                                Just (S'Terminal term) -> do
-                                    -- fromJust should be safe because the symbol after the dot is a terminal
-                                    let new_kernel = Set.map (fromJust . Item.move_forward) items
-                                    (next_set, set_is_new) <- StateMonad.state $ new_item_set (Grammar.all_rules grammar) follow_sets new_kernel
-
-                                    pure ([Map.singleton term (Shift $ ItemSet.number next_set)], if set_is_new then [next_set] else [])
-                                Nothing ->
-                                    pure
-                                        ( map
-                                            ( \(Item rule@(Rule _ r_nt _) _ lookahead) ->
-                                                if r_nt == Grammar.augment_nt grammar && lookahead == EOF
-                                                    then Map.singleton lookahead Accept
-                                                    else Map.singleton lookahead (Reduce rule)
-                                            )
-                                            (Set.toList items)
-                                        , []
-                                        )
-                                _ -> pure ([], [])
-                        )
-                    & fmap unzip
-                    & fmap (first (Map.unionsWith make_conflict . map (Map.map SingleAction) . concat))
-                    & fmap (second concat)
-
-            (gotos, new_sets_from_gotos) <-
-                symbols_after_dot
-                    & Map.toList
-                    & mapM
-                        ( \(symbol_after_dot, items) ->
-                            case symbol_after_dot of
-                                Just (S'NonTerminal nt) -> do
-                                    let new_kernel = Set.map (fromJust . Item.move_forward) items
-                                    (next_set, set_is_new) <- StateMonad.state $ new_item_set (Grammar.all_rules grammar) follow_sets new_kernel
-
-                                    pure (Map.singleton nt (ItemSet.number next_set), if set_is_new then [next_set] else [])
-                                _ -> pure (Map.empty, [])
-                        )
-                    & fmap unzip
-                    & fmap (first (Map.unionsWith make_conflict . map (Map.map SingleAction)))
-                    & fmap (second concat)
-
-            go
-                (Map.insertWith (\_ _ -> error "duplicate state") current_set_number (StateC current_set_number current_set actions gotos) current_table)
-                (more_sets ++ new_sets_from_actions ++ new_sets_from_gotos)
-        go current_table [] = pure $ StateTable current_table
-
-        make_conflict (SingleAction a) (SingleAction b) = Conflict () ([a, b])
-        make_conflict (SingleAction as) (Conflict _ bs) = Conflict () (as : bs)
-        make_conflict (Conflict _ as) (SingleAction bs) = Conflict () (bs : as)
-        make_conflict (Conflict _ as) (Conflict _ bs) = Conflict () (as ++ bs)
+data DuplicateState conflicts_allowed = DuplicateState (State conflicts_allowed) (State conflicts_allowed)
+new :: [State conflicts_allowed] -> Either (DuplicateState conflicts_allowed) (StateTable conflicts_allowed)
+new =
+    fmap StateTable
+        . foldlM
+            ( \state_table state@(State num _ _ _) -> case Map.lookup num state_table of
+                Just old_state -> Left $ DuplicateState old_state state
+                Nothing -> Right $ Map.insert num state state_table
+            )
+            Map.empty
 
 remove_conflicts :: StateTable () -> Either TableConflict (StateTable Void)
 remove_conflicts (StateTable states) = StateTable <$> (mapM remove_conflict_from_state states)
     where
-        remove_conflict_from_state (StateC number set actions gotos) =
-            StateC number set
+        remove_conflict_from_state (State number set actions gotos) =
+            State number set
                 <$> mapM
                     ( \case
                         SingleAction a -> Right $ SingleAction a

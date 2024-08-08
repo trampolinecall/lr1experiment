@@ -17,7 +17,7 @@ import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Grammar (Grammar, pattern Rule)
+import Grammar (Grammar, Rule, pattern Rule)
 import qualified Grammar as Grammar
 import Symbols (NonTerminal, Symbol (..), Terminal (..))
 import Utils (repeat_until_unchanging)
@@ -50,11 +50,18 @@ find_firsts grammar = repeat_until_unchanging add_firsts Map.empty
                 & Map.unionsWith (<>)
                 & Map.unionWith (<>) firsts
 
-find_follows :: Grammar -> FirstSets -> FollowSets
-find_follows grammar first_sets = repeat_until_unchanging add_follows (Map.singleton (Grammar.augment_nt grammar) (Set.singleton EOF))
+find_follows :: NonTerminal -> [Rule] -> FirstSets -> FollowSets
+find_follows augment rules first_sets = repeat_until_unchanging add_follows initial
     where
+        initial =
+            rules
+                & map
+                    (\(Rule _ nt _) -> Map.singleton nt Set.empty)
+                & Map.unionsWith (<>)
+                & Map.unionWith (<>) (Map.singleton augment (Set.singleton EOF))
+
         add_follows follows =
-            Grammar.all_rules grammar
+            rules
                 & concatMap
                     ( \(Rule _ nt production) ->
                         iter_over_production production

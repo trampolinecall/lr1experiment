@@ -3,6 +3,7 @@
 module Main (main) where
 
 -- TODO: testing
+-- TODO: unit test that each type of state generation can handle those grammars (eg test that lalr can handle an lalr grammar but not an lr(1) grammar, ...)
 -- TODO: documenting and comments
 -- TODO: unit testing for first and follow sets based on https://www.cs.uaf.edu/~cs331/notes/FirstFollow.pdf
 
@@ -12,6 +13,7 @@ import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 import qualified Grammar
 import Parser (parse)
 import qualified StateTable
+import qualified SLR
 import Symbols (NonTerminal (..), Symbol (..), Terminal (..))
 import Utils (Display (..))
 
@@ -100,7 +102,7 @@ main = do
                                     , (ntF, [S'Terminal te])
                                     ]
 
-                let state_table = StateTable.generate grammar
+                let state_table = SLR.generate grammar
                 state_table <- ExceptT $ pure $ convert_err $ StateTable.remove_conflicts state_table
 
                 lift $ putStrLn (display grammar)
