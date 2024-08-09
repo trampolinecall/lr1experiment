@@ -17,6 +17,8 @@ import StateTable (Action (..), StateTable)
 import qualified StateTable.Generation
 import Symbols (Terminal (..))
 
+-- TODO: this does not actually work properly becuase the when item sets are interned, the lookaheads are not merged
+
 data LALRItem = LALRItem Rule Int Terminal deriving (Show, Eq, Ord)
 new_item :: Rule -> Int -> Terminal -> Maybe LALRItem
 new_item r@(Rule _ _ production) i l
