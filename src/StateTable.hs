@@ -50,6 +50,9 @@ instance Semigroup (ActionOrConflict () a) where
     (SingleAction as) <> (Conflict _ bs) = Conflict () (as : bs)
     (Conflict _ as) <> (SingleAction bs) = Conflict () (bs : as)
     (Conflict _ as) <> (Conflict _ bs) = Conflict () (as ++ bs)
+instance Functor (ActionOrConflict ()) where
+    fmap f (SingleAction a) = SingleAction (f a)
+    fmap f (Conflict allowed as) = Conflict allowed (map f as)
 
 data TableConflict
     = ActionConflict [Action] -- TODO: make this better

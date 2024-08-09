@@ -33,7 +33,6 @@ instance Item LR0Item where
     can_move_forward (LR0Item (Rule _ _ r_production) i) = i <= length (r_production)
     move_forward (LR0Item r i) = new_item r (i + 1)
 
-    sets_equal = (==)
     find_closure grammar kernel = go Set.empty (Set.toList kernel)
         where
             go current_closure [] = current_closure
@@ -51,6 +50,7 @@ generate :: Grammar -> StateTable LR0Item ()
 generate grammar =
     StateTable.Generation.generate
         new_item_with_index_0
+        StateTable.Generation.default_intern
         ( ( \(LR0Item rule@(Rule _ r_nt _) _) ->
                 let action = if r_nt == Grammar.augment_nt grammar then Accept else Reduce rule
                 in Grammar.all_terminals grammar & Set.toList & map (\term -> (term, action)) & Map.fromList

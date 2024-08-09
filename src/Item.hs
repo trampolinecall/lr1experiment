@@ -15,5 +15,4 @@ class Item i where
     can_move_forward :: i -> Bool
     move_forward :: i -> Maybe i
 
-    sets_equal :: Set i -> Set i -> Bool
     find_closure :: Grammar -> Set i -> Set i

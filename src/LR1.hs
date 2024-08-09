@@ -37,7 +37,6 @@ instance Item LR1Item where
     can_move_forward (LR1Item (Rule _ _ r_production) i _) = i <= length (r_production)
     move_forward (LR1Item r i l) = new_item r (i + 1) l
 
-    sets_equal = (==)
     find_closure grammar kernel =
         lr0_closure
             & Set.map (\(LR0.LR0Item rule@(Rule _ nt _) index) -> LR1Item rule index (follow_sets Map.! nt))
@@ -60,6 +59,7 @@ generate :: Grammar -> StateTable LR1Item ()
 generate grammar =
     StateTable.Generation.generate
         (\rule -> new_item_with_index_0 rule (Set.singleton EOF))
+        StateTable.Generation.default_intern
         ( \(LR1Item rule@(Rule _ r_nt _) _ lookaheads) ->
             if r_nt == Grammar.augment_nt grammar
                 then lookaheads & Set.toList & map (\l -> (l, Accept)) & Map.fromList
