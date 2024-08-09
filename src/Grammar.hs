@@ -44,6 +44,7 @@ data GrammarConstructionError
     = MultipleAugmentNonTerminals [NonTerminal]
     | NoAugmentRules
     deriving Show
+-- most of the table generation algorithms have not yet been modified to properly work with multiple augment rules so it's probably best to only have one
 make_grammar :: [(NonTerminal, [Symbol])] -> [(NonTerminal, [Symbol])] -> Either GrammarConstructionError Grammar
 make_grammar augment_rules rest_of_rules
     | null augment_rules = Left NoAugmentRules
