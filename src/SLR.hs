@@ -5,6 +5,7 @@ module SLR (SLRItem (..), new_item, new_item_with_index_0, generate) where
 import Data.Function ((&))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import FirstAndFollowSets (find_firsts, find_follows)
@@ -17,12 +18,12 @@ import StateTable (Action (..), StateTable)
 import qualified StateTable.Generation
 import Symbols (Terminal (..))
 
-data SLRItem = SLRItem Rule Int Terminal deriving (Show, Eq, Ord)
-new_item :: Rule -> Int -> Terminal -> Maybe SLRItem
+data SLRItem = SLRItem Rule Int (Set Terminal) deriving (Show, Eq, Ord)
+new_item :: Rule -> Int -> Set Terminal -> Maybe SLRItem
 new_item r@(Rule _ _ production) i l
     | i > length production = Nothing
     | otherwise = Just $ SLRItem r i l
-new_item_with_index_0 :: Rule -> Terminal -> SLRItem
+new_item_with_index_0 :: Rule -> Set Terminal -> SLRItem
 new_item_with_index_0 r l = SLRItem r 0 l
 
 instance Item SLRItem where
@@ -39,8 +40,7 @@ instance Item SLRItem where
     sets_equal = (==)
     find_closure grammar kernel =
         lr0_closure
-            & Set.map (\(LR0.LR0Item rule@(Rule _ nt _) index) -> grammar_follow_sets Map.! nt & Set.map (\lookahead -> SLRItem rule index lookahead))
-            & Set.unions
+            & Set.map (\(LR0.LR0Item rule@(Rule _ nt _) index) -> SLRItem rule index (grammar_follow_sets Map.! nt))
         where
             lr0_closure =
                 kernel
@@ -55,10 +55,10 @@ instance Item SLRItem where
 generate :: Grammar -> StateTable SLRItem ()
 generate grammar =
     StateTable.Generation.generate
-        (\rule -> new_item_with_index_0 rule EOF)
-        ( \(SLRItem rule@(Rule _ r_nt _) _ lookahead) ->
+        (\rule -> new_item_with_index_0 rule (Set.singleton EOF))
+        ( \(SLRItem rule@(Rule _ r_nt _) _ lookaheads) ->
             if r_nt == Grammar.augment_nt grammar
-                then Map.singleton lookahead Accept
-                else Map.singleton lookahead (Reduce rule)
+                then lookaheads & Set.toList & map (\l -> (l, Accept)) & Map.fromList
+                else lookaheads & Set.toList & map (\l -> (l, Reduce rule)) & Map.fromList
         )
         grammar
