@@ -102,13 +102,19 @@ generate make_augment_item intern make_reduce_actions grammar =
                 Left (StateTable.DuplicateState s1 s2) -> error $ "duplicate state: " ++ show s1 ++ " " ++ show s2
             where
                 to_state :: (ItemSet item, Map Terminal (ActionOrConflict () Int), Map NonTerminal (ActionOrConflict () Int)) -> State item ()
-                to_state (item_set, shift_table, goto_table) = State (ItemSet.number item_set) item_set (Map.map (Shift <$>) shift_table <> reduce_actions) (goto_table)
+                to_state (item_set, shift_table, goto_table) =
+                    State (ItemSet.number item_set) item_set (Map.unionWith (<>) (Map.map (Shift <$>) shift_table) (reduce_actions)) (goto_table)
                     where
-                        reduce_actions = ItemSet.all_items item_set & Set.toList & filter (isNothing . Item.sym_after_dot) & map (Map.map SingleAction . make_reduce_actions) & Map.unionsWith (<>)
+                        reduce_actions =
+                            ItemSet.all_items item_set
+                                & Set.toList
+                                & filter (isNothing . Item.sym_after_dot)
+                                & map (Map.map SingleAction . make_reduce_actions)
+                                & Map.unionsWith (<>)
 
 default_intern :: Ord item => Set item -> Set item -> [ItemSet item] -> ((Int, Bool), [ItemSet item])
 default_intern kernel closure sets =
-    case List.findIndex (\ (ItemSet _ f_kernel f_closure) -> (f_kernel <> f_closure) == (kernel <> closure)) sets of
+    case List.findIndex (\(ItemSet _ f_kernel f_closure) -> (f_kernel <> f_closure) == (kernel <> closure)) sets of
         Just found_set_index -> ((found_set_index, False), sets)
         Nothing ->
             let new_item_set = ItemSet (length sets) kernel closure
