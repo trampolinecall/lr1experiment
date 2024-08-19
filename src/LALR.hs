@@ -9,7 +9,7 @@ import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import FirstAndFollowSets (find_firsts, find_follows)
+import FirstAndFollowSets (TerminalOrEpsilon (..), find_firsts, firsts_of_sequence)
 import Grammar (Grammar, Rule, pattern Rule)
 import qualified Grammar
 import Item (Item)
@@ -18,7 +18,7 @@ import ItemSet (ItemSet (ItemSet))
 import qualified LR0
 import StateTable (Action (..), StateTable)
 import qualified StateTable.Generation
-import Symbols (Terminal (..))
+import Symbols (Symbol (..), Terminal (..))
 
 data LALRItem = LALRItem Rule Int Terminal deriving (Show, Eq, Ord)
 new_item :: Rule -> Int -> Terminal -> Maybe LALRItem
@@ -39,24 +39,30 @@ instance Item LALRItem where
     can_move_forward (LALRItem (Rule _ _ r_production) i _) = i <= length (r_production)
     move_forward (LALRItem r i l) = new_item r (i + 1) l
 
-    find_closure grammar kernel =
-        lr0_closure
-            & Set.map (\(LR0.LR0Item rule@(Rule _ nt _) index) -> follow_sets Map.! nt & Set.map (\lookahead -> LALRItem rule index lookahead))
-            & Set.unions
+    find_closure grammar kernel = go Set.empty (Set.toList kernel)
         where
-            lr0_closure =
-                kernel
-                    & Set.map (\(LALRItem ru i _) -> fromJust $ LR0.new_item ru i) -- fromJust is safe because the item already exists as an LALR item so the index must be valid
-                    & Item.find_closure grammar
+            go current_closure [] = current_closure
+            go current_closure (current_item@(LALRItem (Rule _ _ prod) index current_item_lookahead) : more) =
+                let symbol_after_dot = Item.sym_after_dot current_item
+                    symbols_after = drop (index + 1) prod
+                    lookaheads =
+                        symbols_after
+                            & firsts_of_sequence first_sets
+                            & Set.map
+                                ( \case
+                                    ToE'Terminal t -> t
+                                    ToE'Epsilon -> current_item_lookahead
+                                )
+                in case symbol_after_dot of
+                    Just (S'NonTerminal nt_after_dot) ->
+                        let to_add_to_closure =
+                                Set.unions $ Set.map (\r -> Set.map (\l -> new_item_with_index_0 r l) lookaheads) (Set.fromList $ Grammar.filter_rules_with_nt nt_after_dot grammar)
+                        in go
+                            (current_closure <> to_add_to_closure)
+                            (more ++ filter (\i -> not (Set.member i kernel) && not (Set.member i current_closure)) (Set.toList to_add_to_closure))
+                    _ -> go current_closure more
+
             first_sets = find_firsts grammar
-            follow_sets =
-                find_follows
-                    ( kernel
-                        & Set.map (\(LALRItem (Rule _ nt _) _ lookahead) -> Map.singleton nt (Set.singleton lookahead))
-                        & Map.unionsWith (<>)
-                    )
-                    ((kernel & Set.map Item.rule & Set.toList) <> (lr0_closure & Set.map Item.rule & Set.toList))
-                    first_sets
 
 generate :: Grammar -> StateTable LALRItem ()
 generate grammar =

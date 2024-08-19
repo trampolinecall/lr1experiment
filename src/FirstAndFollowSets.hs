@@ -5,9 +5,10 @@ module FirstAndFollowSets
     , FollowSet
     , FirstSets
     , FollowSets
-    , TerminalOrEpsilon
+    , TerminalOrEpsilon (..)
     , find_firsts
     , find_follows
+    , firsts_of_sequence
     ) where
 
 import Data.Function ((&))
